@@ -42,7 +42,7 @@ def fetch_spec_from_gemini(manufacturer: str, model_code: str, hardware: str):
     )
 
     response = client.models.generate_content(
-        model="gemini-3.5-flash-lite", # Có thể đổi sang "gemini-3.8-flash" nếu muốn độ chi tiết cao hơn
+        model="gemini-1.5-flash", # Có thể đổi sang "gemini-3.8-flash" nếu muốn độ chi tiết cao hơn
         contents=prompt,
         config=types.GenerateContentConfig(
             tools=[types.Tool(google_search=types.GoogleSearch())], # Bật tìm kiếm Google trực tiếp
