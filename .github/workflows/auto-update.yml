@@ -34,12 +34,13 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Cài đặt thư viện Groq và tìm kiếm web
-        run: pip install groq ddgs
+      - name: Cài đặt thư viện Groq và Tavily
+        run: pip install groq tavily-python
 
       - name: Chạy AI tra cứu và cập nhật JSON
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           MANUFACTURER: ${{ github.event.client_payload.manufacturer || github.event.inputs.manufacturer }}
           MODEL: ${{ github.event.client_payload.model || github.event.inputs.model }}
           HARDWARE: ${{ github.event.client_payload.hardware || github.event.inputs.hardware || '' }}
