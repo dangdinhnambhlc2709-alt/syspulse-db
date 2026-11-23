@@ -1,11 +1,10 @@
 import json
 import os
 import sys
-from ddgs import DDGS
 from groq import Groq
+from tavily import TavilyClient
 
 DB_FILE = "devices_db.json"
-# Model miễn phí, ổn định và lọc JSON rất chính xác trên Groq
 GROQ_MODEL = "llama-3.3-70b-versatile"
 
 
@@ -22,38 +21,53 @@ def save_db(data):
 
 
 def search_device_info(manufacturer: str, model_code: str, hardware: str) -> str:
-    """Tìm kiếm thông số thiết bị từ Internet qua DuckDuckGo (miễn phí, không cần API Key)."""
+    """Tìm kiếm thông số thiết bị từ Internet qua Tavily API (không bị chặn trên GitHub)."""
+    tavily = TavilyClient(api_key=os.environ["TAVILY_API_KEY"])
+
+    # Tránh lặp tên hãng (VD: tránh tạo thành "Xiaomi Xiaomi 17")
+    device_name = (
+        model_code
+        if manufacturer.lower() in model_code.lower()
+        else f"{manufacturer} {model_code}"
+    )
+
     queries = [
-        f"{manufacturer} {model_code} specs gsmarena OR nanoreview",
-        f"{manufacturer} {model_code} {hardware} chipset cpu gpu ram ufs".strip(),
+        f"{device_name} specs chipset cpu gpu ram storage gsmarena nanoreview",
     ]
+    if hardware:
+        queries.append(f"{device_name} {hardware} specs smartphone")
 
     snippets = []
     seen_urls = set()
 
-    with DDGS() as ddgs:
-        for query in queries:
-            try:
-                results = ddgs.text(query, max_results=5)
-                if not results:
+    for query in queries:
+        try:
+            response = tavily.search(
+                query=query,
+                search_depth="advanced",
+                max_results=5,
+            )
+            results = response.get("results", [])
+            for r in results:
+                url = r.get("url", "")
+                if url in seen_urls:
                     continue
-                for r in results:
-                    url = r.get("href", "")
-                    if url in seen_urls:
-                        continue
-                    seen_urls.add(url)
-                    title = r.get("title", "")
-                    body = r.get("body", "")
-                    snippets.append(f"- Nguồn: {title} ({url})\n  Nội dung: {body}")
-            except Exception as e:
-                print(f"Cảnh báo lỗi tìm kiếm với từ khóa '{query}': {e}")
+                seen_urls.add(url)
+                title = r.get("title", "")
+                content = r.get("content", "")
+                snippets.append(f"- Nguồn: {title} ({url})\n  Nội dung: {content}")
 
-    return "\n".join(snippets)
+            # Nếu lượt tìm đầu đã lấy đủ nguồn chi tiết thì không cần tốn thêm lượt thứ 2
+            if len(snippets) >= 3:
+                break
+        except Exception as e:
+            print(f"Cảnh báo lỗi tìm kiếm Tavily với từ khóa '{query}': {e}")
+
+    return "\n\n".join(snippets)
 
 
 def fetch_spec_from_groq(manufacturer: str, model_code: str, hardware: str, web_context: str) -> dict:
     """Dùng Groq AI đọc kết quả tìm kiếm web và trích xuất đúng khung JSON."""
-    # Tự động đọc biến môi trường GROQ_API_KEY từ GitHub Secrets
     client = Groq()
 
     system_prompt = (
@@ -79,7 +93,7 @@ def fetch_spec_from_groq(manufacturer: str, model_code: str, hardware: str, web_
         f"- Mã máy hệ thống (Model): {model_code}\n"
         f"- Mã phần cứng/Bo mạch (Hardware): {hardware}\n\n"
         f"Kết quả tìm kiếm trực tuyến mới nhất:\n"
-        f"{web_context if web_context else 'Không tìm thấy kết quả web trực tiếp.'}\n\n"
+        f"{web_context}\n\n"
         f"Hãy quy đổi mã máy '{model_code}' sang tên thương mại chuẩn và xuất ra JSON thông số."
     )
 
@@ -112,14 +126,14 @@ def main():
         print(f"Mã máy {model_code} đã có trong dữ liệu, bỏ qua.")
         return
 
-    print(f"1. Đang tìm kiếm web cho: {manufacturer} - {model_code}...")
+    print(f"1. Đang tìm kiếm web qua Tavily cho: {manufacturer} - {model_code}...")
     web_context = search_device_info(manufacturer, model_code, hardware)
 
     if not web_context:
         print("Không thu thập được dữ liệu tìm kiếm từ Internet.")
         return
 
-    print("2. Đang gửi dữ liệu sang Groq để trích xuất thông số...")
+    print("2. Đã tìm thấy dữ liệu web. Đang gửi sang Groq trích xuất JSON...")
     spec = fetch_spec_from_groq(manufacturer, model_code, hardware, web_context)
 
     if spec.get("commercial_name") and spec.get("soc_name"):
