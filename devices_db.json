@@ -1,1 +1,11 @@
-{}
+{
+  "Xiaomi 17": {
+    "commercial_name": "Xiaomi 17",
+    "soc_name": "Qualcomm Snapdragon 8 Elite Gen 5",
+    "process_nm": "3nm",
+    "cpu_architecture": "Octa-core (2x4.6 GHz Oryon V3 Phoenix L + 6x3.62 GHz Oryon V3 Phoenix M)",
+    "gpu_name": "Adreno 840",
+    "ram_type": "LPDDR5X",
+    "storage_type": "UFS 4.1"
+  }
+}
