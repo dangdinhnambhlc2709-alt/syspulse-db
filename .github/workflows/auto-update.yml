@@ -1,0 +1,58 @@
+name: Tự động cập nhật thông số thiết bị
+
+on:
+  # 1. Kích hoạt ngay lập tức khi có máy lạ báo về từ Cloudflare Worker
+  repository_dispatch:
+    types: [new-device-detected]
+  # 2. Cho phép bạn bấm chạy thử thủ công trên web GitHub nếu cần kiểm tra
+  workflow_dispatch:
+    inputs:
+      manufacturer:
+        description: 'Tên hãng (VD: Xiaomi)'
+        required: true
+      model:
+        description: 'Mã máy (VD: Xiaomi 17 hoặc 25098PN5AC)'
+        required: true
+      hardware:
+        description: 'Mã phần cứng (tùy chọn)'
+        required: false
+
+# Cấp quyền ghi để kịch bản tự lưu ngược tệp devices_db.json lên kho
+permissions:
+  contents: write
+
+# Tránh lỗi xung đột tệp khi có nhiều máy lạ báo về cùng một lúc (xếp hàng chạy lần lượt)
+concurrency:
+  group: update-devices-db
+  cancel-in-progress: false
+
+jobs:
+  enrich-device:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tải mã nguồn kho hiện tại
+        uses: actions/checkout@v4
+
+      - name: Cài đặt Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cài đặt thư viện Gemini
+        run: pip install google-genai pydantic
+
+      - name: Chạy AI tra cứu và cập nhật JSON
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MANUFACTURER: ${{ github.event.client_payload.manufacturer || github.event.inputs.manufacturer }}
+          MODEL: ${{ github.event.client_payload.model || github.event.inputs.model }}
+          HARDWARE: ${{ github.event.client_payload.hardware || github.event.inputs.hardware || '' }}
+        run: |
+          python update_db.py "$MANUFACTURER" "$MODEL" "$HARDWARE"
+
+      - name: Lưu tệp devices_db.json mới lên GitHub
+        run: |
+          git config user.name "SysPulse Bot"
+          git config user.email "bot@syspulse.local"
+          git add devices_db.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Tự động thêm thông số: $MODEL" && git push)
