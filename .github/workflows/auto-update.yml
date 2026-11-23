@@ -1,10 +1,8 @@
 name: Tự động cập nhật thông số thiết bị
 
 on:
-  # 1. Kích hoạt ngay lập tức khi có máy lạ báo về từ Cloudflare Worker
   repository_dispatch:
     types: [new-device-detected]
-  # 2. Cho phép bạn bấm chạy thử thủ công trên web GitHub nếu cần kiểm tra
   workflow_dispatch:
     inputs:
       manufacturer:
@@ -17,11 +15,9 @@ on:
         description: 'Mã phần cứng (tùy chọn)'
         required: false
 
-# Cấp quyền ghi để kịch bản tự lưu ngược tệp devices_db.json lên kho
 permissions:
   contents: write
 
-# Tránh lỗi xung đột tệp khi có nhiều máy lạ báo về cùng một lúc (xếp hàng chạy lần lượt)
 concurrency:
   group: update-devices-db
   cancel-in-progress: false
@@ -38,12 +34,12 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Cài đặt thư viện Gemini
-        run: pip install google-genai pydantic
+      - name: Cài đặt thư viện Groq và tìm kiếm web
+        run: pip install groq ddgs
 
       - name: Chạy AI tra cứu và cập nhật JSON
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           MANUFACTURER: ${{ github.event.client_payload.manufacturer || github.event.inputs.manufacturer }}
           MODEL: ${{ github.event.client_payload.model || github.event.inputs.model }}
           HARDWARE: ${{ github.event.client_payload.hardware || github.event.inputs.hardware || '' }}
