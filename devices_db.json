@@ -7,5 +7,14 @@
     "gpu_name": "Adreno 840",
     "ram_type": "LPDDR5X",
     "storage_type": "UFS 4.1"
+  },
+  "PLE110": {
+    "commercial_name": "OPPO K13 Turbo Pro",
+    "soc_name": "Qualcomm SM8735 Snapdragon 8s Gen 4",
+    "process_nm": "4nm",
+    "cpu_architecture": "Octa-core (1x3.21 GHz Cortex-X4 & 3x3.0 GHz Cortex-A720 & 2x2.8 GHz Cortex-A720 & 2x2.0 GHz Cortex-A720)",
+    "gpu_name": "Adreno 825 @1.15GHz",
+    "ram_type": null,
+    "storage_type": "UFS 4.0"
   }
 }
